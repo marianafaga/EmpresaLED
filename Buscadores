@@ -1,0 +1,339 @@
+gg
+
+MF
+Mariana Fagandini
+
+
+  Responder|
+Hoy, 07:17 p.m.
+Usted 
+Bandeja de entrada; Elementos enviados
+
+
+Anularfac.txt
+3 KB
+
+Buscadores.txt
+12 KB
+
+Viajes.txt
+16 KB
+
+acceso a datos.txt
+5 KB
+
+sql.docx
+64 KB
+
+Mostrar todos 7 archivos adjuntos (1 MB)  Descargar todo  Guardar todo en OneDrive - Personal
+
+  
+gg
+
+MF
+Mariana Fagandini
+|
+Hoy, 07:17 p.m.
+Usted 
+
+
+Anularfac.txt
+3 KB
+
+Buscadores.txt
+12 KB
+
+Viajes.txt
+16 KB
+
+acceso a datos.txt
+5 KB
+
+sql.docx
+64 KB
+
+7 archivos adjuntos (1 MB) Descargar todo Guardar todo en OneDrive - Personal
+
+ Descargar 
+Public Class frmBuscar
+    Enum buscoUn
+        cliente
+        chofer
+        origen
+        destino
+        horarios
+    End Enum
+
+    Dim busco As buscoUn = buscoUn.destino
+
+    Dim acceso As New acceso_a_datos
+    Dim dt As New Data.DataTable
+    Dim devolver As String
+    Dim cadena As String = ""
+    Dim nomTabla As String = ""
+    Shared idDatos As New Data.DataTable
+    Shared orig, desti, idPlani As Integer
+    
+
+    'Este metodo devuelve el string que se va a mostrar en el txt del frmVenta segun la busqueda
+    Public ReadOnly Property _devolucion() As String
+        Get
+            Return Me.devolver
+        End Get
+    End Property
+    
+    'Aca devuelve el id del elemento seleccionado de la busqueda
+    Public ReadOnly Property _IdDato() As Data.DataTable
+        Get
+            Return idDatos
+        End Get
+    End Property
+
+    'Permite obtener y cambiar el tipo de busqueda
+    Public Property _queBusco() As buscoUn
+        Get
+            Return Me.busco
+        End Get
+        Set(ByVal x As buscoUn)
+            Me.busco = x
+        End Set
+    End Property
+
+
+    Private Sub Busquedas_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        TextBox1.Visible = True
+        mostrarTodo()
+
+    End Sub
+
+    Public Sub venta()
+        Me.cmd_Agregar.Visible = False
+        Me.cmd_Eliminar.Visible = False
+        Me.cmd_Modificar.Visible = False
+        Me.cmd_seleccionar.Visible = True
+    End Sub
+
+    Public Sub edicion()
+        Me.cmd_Agregar.Visible = True
+        Me.cmd_Eliminar.Visible = True
+        Me.cmd_Modificar.Visible = True
+        Me.cmd_seleccionar.Visible = False
+    End Sub
+
+    'Aca muestra todos los resultados segun la busqueda que se este realizando
+    Private Sub mostrarTodo()
+        Select Case busco
+            Case buscoUn.cliente
+                Label1.Text = "Nombre del Cliente a buscar: "
+                nomTabla = "Clientes"
+                dt = acceso._consulta("select C.apellido as Apellido, C.nombres as Nombres, T.descripcion as Tipo, C.doc as Documento FROM " & nomTabla & " C, tipoDoc T where C.tipoDoc=T.id")
+                Exit Select
+
+            Case buscoUn.chofer
+                Label1.Text = "Nombre del Chofer a buscar: "
+                nomTabla = "Choferes"
+                dt = acceso._consulta("select C.apellido as Apellido, C.nombres as Nombres, T.descripcion as Tipo, C.doc as Documento FROM " & nomTabla & " C, tipoDoc T where C.tipoDoc=T.id")
+                Exit Select
+
+            Case buscoUn.origen
+                Label1.Text = "Nombre de Ciudad: "
+                nomTabla = "Domicilios"
+                dt = acceso._consulta("select DISTINCT D.calle as Calle, D.numero As Num, C.nombre as Ciudad, P.nombre as Provincia FROM " & nomTabla & " D INNER JOIN Planificacion Pl on Pl.lugarOrigen=D.id INNER JOIN Ciudades C on  D.ciudad=C.id INNER JOIN Provincias P on C.provincia=P.id")
+                'dt = acceso._consulta("SELECT DISTINCT  D.calle, D.numero  As Num, C.nombre as Ciudad, P.nombre as Provincia FROM Planificacion Pl LEFT JOIN Domicilios D ON Pl.lugarDestino= D.id LEFT JOIN Ciudades C ON D.ciudad = C.id LEFT JOIN Provincias P ON  C.provincia= P.id")
+
+                Exit Select
+
+            Case buscoUn.destino
+                Label1.Text = "Nombre de Ciudad: "
+                nomTabla = "Domicilios"
+                dt = acceso._consulta("SELECT D.calle as Calle, D.numero As Num, C.nombre as Ciudad, P.nombre as Provincia FROM Domicilios D INNER JOIN Planificacion Pl ON D.id = Pl.lugarDestino INNER JOIN Ciudades C ON D.ciudad = C.id INNER JOIN Provincias P ON P.id = C.provincia WHERE Pl.lugarOrigen = " & orig)
+                'dt = acceso._consulta("SELECT DISTINCT D.calle as Calle, D.numero  As Num, C.nombre as Ciudad, P.nombre as Provincia FROM Planificacion Pl LEFT JOIN Domicilios D ON Pl.lugarDestino= D.id LEFT JOIN Ciudades C ON D.ciudad = C.id LEFT JOIN Provincias P ON  C.provincia= P.id WHERE Pl.lugarOrigen = " & orig)
+
+                Exit Select
+
+            Case buscoUn.horarios
+                Label1.Text = "Fecha y Hora "
+                nomTabla = "Viajes"
+                 dt = acceso._consulta("SELECT Viajes.fecha_hs_partida, Viajes.fecha_hs_llegada FROM Planificacion INNER JOIN Viajes ON Planificacion.id = Viajes.planificacion WHERE Viajes.planificacion =" & idPlani)
+                TextBox1.Visible = False
+                Exit Select
+
+        End Select
+
+
+        'Esto pone los resultados de los select en la grilla
+        Me.grilla.DataSource = dt
+
+
+        'si se muestra clientes o choferes achico la columna donde dice le tipo dni para una mejor visualizacion
+        If nomTabla = "Clientes" Or nomTabla = "Choferes" Then
+            Me.grilla.Columns(2).Width = 35
+        Else
+            Me.grilla.AutoResizeColumns()
+        End If
+
+    End Sub
+
+    'este metodo se ejecuta cada vez que preciono una tecla_ es para buscar algo especifico
+    Private Sub TextBox1_KeyPress1(sender As Object, e As KeyPressEventArgs) Handles TextBox1.KeyPress
+
+
+        cadena += e.KeyChar.ToString
+
+        Dim valor As Integer
+        valor = Asc(e.KeyChar)
+
+
+        'si valor=8  significa que presiono el boton borrar
+
+        If valor = 8 Then
+            'longi es la longitud de la cadena menos dos espacios
+            Dim longi As Integer
+            longi = cadena.Length - 2
+
+            If longi > 0 Then
+
+                'aca elimino los ultimos dos caracteres de la cadena partiendo de longi
+                cadena = cadena.Remove(longi, 2)
+            Else
+                cadena = ""
+                mostrarTodo()
+            End If
+
+        End If
+
+        buscar(cadena)
+    End Sub
+
+
+    Private Sub buscar(ByVal cadena As String)
+        Select Case busco
+            Case buscoUn.cliente, buscoUn.chofer
+                dt = acceso._consulta("select C.apellido as Apellido, C.nombres as Nombres, T.descripcion as Tipo, C.doc as Documento  FROM " & nomTabla & " C, tipoDoc T where C.tipoDoc=T.id and C.nombres like '" & cadena & "%'")
+
+            Case buscoUn.origen
+                dt = acceso._consulta("select D.calle as Calle, D.numero As Num, C.nombre as Ciudad, P.nombre as Provincia FROM " & nomTabla & " D, Planificacion Pl, Ciudades C, Provincias P where Pl.lugarOrigen=D.id and D.ciudad=C.id and C.provincia=P.id and C.nombre like '" & cadena & "%'  ")
+
+            Case buscoUn.destino
+                dt = acceso._consulta("select D.calle as Calle, D.numero As Num, C.nombre as Ciudad, P.nombre as Provincia FROM " & nomTabla & " D, Planificacion Pl, Ciudades C, Provincias P where Pl.lugarDestino=D.id and D.ciudad=C.id and C.provincia=P.id  and Pl.lugarOrigen = " & orig & "and C.nombre like '" & cadena & "%'  ")
+
+            Case buscoUn.horarios
+                dt = acceso._consulta("select V.fecha_hs_partida, V.fecha_hs_llegada FROM " & nomTabla & " V, Planificacion Pl where Pl.id=V.planificacion  and V.fecha_hs_partida = '" & cadena & "%'  ")
+
+        End Select
+
+        'aca guardo en la grilla el dt, que ser� segun lo que busco
+        Me.grilla.DataSource = dt
+
+
+    End Sub
+
+    Private Sub cmd_seleccionar_Click(sender As Object, e As EventArgs) Handles cmd_seleccionar.Click
+        Select Case busco
+            Case buscoUn.cliente, buscoUn.chofer
+                devolver = grilla.CurrentRow.Cells.Item(1).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(0).Value.ToString
+                'guardo el id del elemento seleccionado de la tabla que se esta trabajando
+                dt = acceso._consulta("Select C.id from " & nomTabla & " C , tipoDoc t where t.descripcion= '" & grilla.CurrentRow.Cells.Item(2).Value.ToString & "' and C.doc= " & CInt(grilla.CurrentRow.Cells.Item(3).Value))
+
+                'Guardo el id del Cliente o Chofer
+                idDatos = dt
+
+            Case buscoUn.origen
+                devolver = grilla.CurrentRow.Cells.Item(0).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(1).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(2).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(3).Value.ToString()
+                dt = acceso._consulta("Select D.id from Domicilios D, Ciudades C, Provincias P where D.calle= '" & grilla.CurrentRow.Cells.Item(0).Value.ToString() & "' and D.numero= " & grilla.CurrentRow.Cells.Item(1).Value)
+                orig = dt.Rows(0)(0)
+
+            Case buscoUn.destino
+                devolver = grilla.CurrentRow.Cells.Item(0).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(1).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(2).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(3).Value.ToString()
+                dt = acceso._consulta("Select D.id from Domicilios D, Ciudades C, Provincias P where D.calle= '" & grilla.CurrentRow.Cells.Item(0).Value.ToString() & "' and D.numero= " & CInt(grilla.CurrentRow.Cells.Item(1).Value.ToString()))
+                desti = dt.Rows(0)(0)
+
+                'guardo el id del elemento seleccionado de la tabla que se esta trabajando
+                dt = acceso._consulta("Select id from Planificacion where lugarOrigen= " & orig & " and lugarDestino= " & desti)
+
+                idPlani = dt.Rows(0)(0)
+
+
+            Case buscoUn.horarios
+                devolver = grilla.CurrentRow.Cells.Item(0).Value.ToString() + " - " + grilla.CurrentRow.Cells.Item(1).Value.ToString()
+
+                dt = acceso._consulta("Select V.idViaje from Viajes V where V.fecha_hs_partida= '" & Convert.ToDateTime(grilla.CurrentRow.Cells.Item(0).Value) & "' and V.planificacion= " & idPlani)
+
+                'Guardo el id de Viajes
+                idDatos = dt
+
+        End Select
+
+        Me.Close()
+
+    End Sub
+
+    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        Me.Close()
+    End Sub
+
+    Private Sub cmd_Agregar_Click(sender As Object, e As EventArgs) Handles cmd_Agregar.Click
+        frmAgregar._queAccion = frmAgregar.accion.insertar
+
+        Select Case busco
+            Case buscoUn.cliente
+
+
+                frmAgregar._queAgrego = frmAgregar.un.cliente
+                frmAgregar.Show()
+                Exit Select
+
+            Case buscoUn.chofer
+
+                frmAgregar._queAgrego = frmAgregar.un.chofer
+                frmAgregar.Show()
+                Exit Select
+        End Select
+    End Sub
+
+    Private Sub cmd_Eliminar_Click(sender As Object, e As EventArgs) Handles cmd_Eliminar.Click
+
+        Dim response = MsgBox("�Seguro que desea eliminar?", MsgBoxStyle.YesNo, "Confirmar")
+        If response = MsgBoxResult.Yes Then
+        
+            dt = acceso._consulta("Select C.id from " & nomTabla & " C  where C.doc= " & CInt(grilla.CurrentRow.Cells.Item(3).Value))
+
+            'Guardo el id del Cliente o Chofer
+            idDatos = dt
+            acceso._noEsConsulta("Update " & nomTabla & " set existe=" & 0 & "where id= " & idDatos.Rows(0)(0))
+
+        End If
+        Me.Close()
+    End Sub
+
+
+
+    Public Sub cmd_Modificar_Click(sender As Object, e As EventArgs) Handles cmd_Modificar.Click
+        frmAgregar._queAccion = frmAgregar.accion.modificar
+
+        'ACA TENGO Q RECUPERAR EL ID DEL QUE VOY A MODIFICAR
+        dt = acceso._consulta("Select C.id from " & nomTabla & " C , tipoDoc t where  t.descripcion= '" & grilla.CurrentRow.Cells.Item(2).Value.ToString & "' and C.doc= " & grilla.CurrentRow.Cells.Item(3).Value)
+
+
+        Select Case busco
+            Case buscoUn.cliente
+                frmAgregar._queModifico = frmAgregar.un.cliente
+                frmAgregar._id = dt.Rows(0)(0)
+                frmAgregar.cargarDatos()
+                frmAgregar.Show()
+
+            Case buscoUn.chofer
+
+                frmAgregar._queModifico = frmAgregar.un.chofer
+                frmAgregar._id = dt.Rows(0)(0)
+                frmAgregar.cargarDatos()
+                frmAgregar.Show()
+
+        End Select
+
+        Me.Close()
+    End Sub
+
+
+End Class
