@@ -1,0 +1,81 @@
+Public Class frmAnular
+
+    Dim acceso As New acceso_a_datos
+    Dim dt As DataTable
+    Private Sub txtSubTotal_TextChanged(sender As Object, e As EventArgs) Handles txtSubTotal.TextChanged
+
+        cmdAnular.Enabled = False
+
+    End Sub
+
+    Private Sub cmdBuscar_Click(sender As Object, e As EventArgs) Handles cmdBuscar.Click
+
+
+
+        dt = acceso._consulta("Select idCliente, subtotal, iva, descuento, total from Ventas where nroFactura= " & CInt(txtNumeroFac.Text))
+
+        If dt.Rows.Count = 0 Then
+            MsgBox("No existe ese nro de Factura")
+            txtNumeroFac.Focus()
+
+            cmdAnular.Enabled = False
+        Else
+
+            txtSubTotal.Text = dt.Rows(0)(1)
+            txtIva.Text = dt.Rows(0)(2)
+            txtDescuento.Text = dt.Rows(0)(3)
+            txtTotal.Text = dt.Rows(0)(4)
+
+            dt = acceso._consulta("Select nombres + apellido as nombre from Clientes where id= " & dt.Rows(0)(0))
+            txtCliente.Text = dt.Rows(0)(0)
+
+            cargarGrilla()
+
+            cmdAnular.Enabled = True
+        End If
+
+
+    End Sub
+
+    Public Sub cargarGrilla()
+
+        Dim c As Integer
+
+        Dim consulta As String
+
+        consulta = "SELECT DV.idViaje, DV.precioUnitario, (cast(D.calle as varchar) + '-'+ cast(D.numero as varchar) + '-'+  D.barrio + '-'+ C.nombre + '-'+ P.nombre) AS Origen, "
+        consulta &= "(cast(Do.calle as varchar) + '-'+ cast(Do.numero as varchar) + '-'+  Do.barrio  + '-'+ Ci.nombre + '-'+ Pr.nombre ) AS Destino "
+        consulta &= "From DetallesVentas DV inner join Viajes V on DV.idViaje=V.idViaje inner join "
+        consulta &= "Planificacion L on V.planificacion= L.id  inner join Domicilios D on L.lugarOrigen = D.id inner join Domicilios Do on L.lugarDestino = Do.id "
+        consulta &= "INNER JOIN Ciudades C ON   D.ciudad= C.id "
+        consulta &= "INNER JOIN Provincias P ON D.provincia = P.id "
+        consulta &= "inner join Ciudades Ci on Do.ciudad= Ci.id "
+        consulta &= "INNER JOIN Provincias Pr ON Do.provincia = Pr.id "
+        consulta &= "where DV.nroFactura= " & CInt(txtNumeroFac.Text)
+
+        dt = acceso._consulta(consulta)
+
+        For c = 0 To dt.Rows.Count - 1
+
+            grilla.Rows.Add(dt.Rows(c)(0), dt.Rows(c)(1), dt.Rows(c)(2), dt.Rows(c)(3))
+
+        Next
+    End Sub
+
+    Private Sub cmdCancelar_Click(sender As Object, e As EventArgs) Handles cmdCancelar.Click
+        Me.Close()
+    End Sub
+
+    Private Sub cmdAnular_Click(sender As Object, e As EventArgs) Handles cmdAnular.Click
+
+        Dim anular As String
+        anular = "Update Ventas Set valido= " & 0 & "where nroFactura= " & CInt(txtNumeroFac.Text)
+
+        acceso._noEsConsulta(anular)
+
+    End Sub
+
+    Private Sub frmAnular_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+    End Sub
+End Class
