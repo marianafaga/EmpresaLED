@@ -1,0 +1,525 @@
+Public Class frmVenta
+
+    Dim acceso As New acceso_a_datos
+    Dim comb As New combo
+    Dim dt, dt1 As New DataTable
+    Dim row As DataRow
+
+    Dim tt, consulta, idFechaHsPartida As String
+    
+    Dim DatoViaje As Boolean = True
+    Dim idViaje, idClie As Integer 'idClie es el cliente que realiza la compra
+
+    Dim asi As New frmAsientos
+    Dim numAsiento
+
+
+    Dim parcial, total As Decimal
+
+    Dim i As Integer 'es un indice contador
+
+    Private Sub frmVenta_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        dt = acceso._consulta("Select * from FormasDePago")
+
+        cmd_destino.Enabled = False
+        cmd_horarios.Enabled = False
+
+        optEfectivo.Checked = True
+        activarDesactivar()
+       
+        'boton guardar
+        cmdConfirmar.Enabled = False
+        cmd_agregar.Enabled = False
+        cmd_quitar.Enabled = False
+
+    End Sub
+
+
+    Private Sub cmdConfirmar_Click(sender As Object, e As EventArgs) Handles cmdConfirmar.Click
+
+        If txtNomApe.Text = "" Then
+            MsgBox("Inserte el Cliente")
+
+            Exit Sub
+        End If
+
+        dt = acceso._consulta("Select lugarOrigen from Planificacion where id = (Select planificacion from Viajes where idViaje= " & idViaje & ")")
+
+        txt_subtotal.Text.Replace(",", ".")
+
+
+
+        Dim insert As String
+        insert = "insert into Ventas ("
+        insert &= "idCliente, lugarVenta, fechaVenta, subtotal, iva, descuento, total, valido)"
+        insert &= " values (" & idClie
+        insert &= ", " & frm_inicio.idSucursal
+        insert &= ", " & CDec(txt_subtotal.Text.Replace(",", "."))
+
+
+
+        'ACA ESTA EL ERROR HAY QUE VER PORQUE NO SE INGRESA LA FECHA
+        insert &= ", '" & Convert.ToDateTime(DateTime.Now.ToString) & "' "
+
+
+        insert &= ", " & CDec(txt_iva.Text.Replace(",", "."))
+        insert &= ", " & CDec(txt_descu.Text.Replace(",", "."))
+        insert &= ", " & CDec(txtTotal.Text.Replace(",", "."))
+        insert &= "," & 1 & ")"
+
+
+        acceso._noEsConsulta(insert)
+
+        MsgBox("registro venta")
+
+        dt = acceso._consulta("select nroFactura, MAX(nroFactura) from Ventas GROUP BY nroFactura")
+        'dt = acceso._consulta("Select nroFactura from Ventas where nroFactura= (Select MAX(nroFactura) from Ventas)")
+
+
+        If dt.Rows.Count = 0 Then
+            MsgBox("?")
+        Else
+            Dim c As Integer
+            For c = 0 To grilla_viajes.Rows.Count - 2
+                insert = "insert into DetallesVentas ("
+                insert &= " nroFactura, idViaje, precioUnitario, nroAsiento)"
+                insert &= " values (" & dt.Rows(0)(0)
+                insert &= ", " & idViaje
+                insert &= ", " & CDec(grilla_viajes.Rows(c).Cells(2).Value.ToString.Replace(",", "."))
+                insert &= ", " & CInt(grilla_viajes.Rows(c).Cells(3).Value) & ")"
+
+                acceso._noEsConsulta(insert)
+
+                MsgBox("Detalles venta")
+
+                Select Case grilla_pagos.Rows(c).Cells(3).Value
+                    Case 1 'Efectivo
+                        insert = " insert into DetallesPagos ("
+                        insert &= " nroFactura, formaPago, saldo)"
+                        insert &= " values (" & dt.Rows(0)(0)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(3).Value)
+                        insert &= ", " & CDec(grilla_pagos.Rows(c).Cells(2).Value.ToString.Replace(",", ".")) & ")"
+
+                        Exit Select
+                    Case 2 'Debito
+                        insert = " insert into DetallesPagos ("
+                        insert &= " nroFactura, formaPago, marcaTarj, nroTarj, saldo, nroAutorizacion)"
+                        insert &= " values (" & dt.Rows(0)(0)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(3).Value)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(4).Value)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(5).Value)
+                        insert &= ", " & CDec(grilla_pagos.Rows(c).Cells(2).Value.ToString.Replace(",", "."))
+                        insert &= ", " & CInt(txt_autorizacion.Text) & ")"
+                        MsgBox("D")
+                        Exit Select
+                    Case 3 'Credito
+                        insert = " insert into DetallesPagos ("
+                        insert &= " nroFactura, formaPago, marcaTarj, nroTarj, cantCuotas, saldo, nroAutorizacion)"
+                        insert &= " values (" & dt.Rows(0)(0)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(3).Value)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(4).Value)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(5).Value)
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(6).Value)
+                        insert &= ", " & CDec(grilla_pagos.Rows(c).Cells(2).Value.ToString.Replace(",", "."))
+                        insert &= ", " & CInt(grilla_pagos.Rows(c).Cells(7).Value) & ")"
+                        MsgBox("c")
+                        Exit Select
+                End Select
+
+                acceso._noEsConsulta(insert)
+            Next
+            MsgBox("Venta Realizada Con �xito", MsgBoxStyle.Information, "Importante")
+
+        End If
+
+        limpiarTodo()
+
+        ' generarFactura()
+
+    End Sub
+
+    Private Sub limpiarTodo()
+        limpiarViaje()
+        txtNomApe.Text = ""
+
+        limpiarPago()
+
+        txtTotal.Text = ""
+
+        grilla_viajes.Rows.Clear()
+        grilla_pagos.Rows.Clear()
+
+    End Sub
+
+    Private Sub limpiarViaje()
+        txtDestino.Text = ""
+        txtOrigen.Text = ""
+        txtFechaHoraSalida.Text = ""
+
+    End Sub
+
+    Private Sub limpiarPago()
+        txt_numTarjeta.Text = ""
+        txt_autorizacion.Text = ""
+        txt_numCuotas.Text = ""
+        txt_interes.Text = ""
+        txt_preCuota.Text = ""
+        txtEntrego.Text = ""
+       
+
+    End Sub
+
+    Private Sub cmdSalir_Click(sender As Object, e As EventArgs) Handles cmdSalir.Click
+        Me.Close()
+        frm_menu.Visible = True
+    End Sub
+
+    Private Sub cmd_origen_Click(sender As Object, e As EventArgs) Handles cmd_origen.Click, cmdBuscarCliente.Click, cmd_destino.Click, cmd_horarios.Click
+
+        Dim buscar As New frmBuscar
+        'esto pone invisible algunos botones del frmBuscar que no lo necesitamos en este caso
+        buscar.venta()
+
+        Select Case sender.name()
+            Case "cmdBuscarCliente"
+                buscar._queBusco = frmBuscar.buscoUn.cliente
+                buscar.ShowDialog()
+
+                'Muestro en el frm el cliente que va a viajar
+                txtNomApe.Text = buscar._devolucion()
+
+                'aca recupero el id del cliente seleccionado
+                idClie = buscar._IdDato().Rows(0)(0)
+
+
+            Case "cmd_origen"
+                buscar._queBusco = frmBuscar.buscoUn.origen
+                buscar.ShowDialog()
+                'Muestra el en frm el Origen Seleccionado
+                txtOrigen.Text = CStr(buscar._devolucion())
+
+                'habilito boton de buscar destino
+                cmd_destino.Enabled = True
+
+            Case "cmd_destino"
+                buscar._queBusco = frmBuscar.buscoUn.destino
+                buscar.ShowDialog()
+
+                'Muestra el en frm el Destino Seleccionado
+                txtDestino.Text = buscar._devolucion()
+
+                'habilito boton de buscar horario
+                cmd_horarios.Enabled = True
+
+            Case "cmd_horarios"
+                buscar._queBusco = frmBuscar.buscoUn.horarios
+                buscar.ShowDialog()
+
+                'Muestra en frm horario Seleccionado
+                txtFechaHoraSalida.Text = buscar._devolucion()
+
+                'Obtengo id de Viaje
+                idViaje = buscar._IdDato().Rows(0)(0)
+
+                cmd_agregar.Enabled = True
+
+        End Select
+
+    End Sub
+
+    Private Sub optCredito_Click(sender As Object, e As EventArgs) Handles optCredito.Click
+
+        lbl_marcaTarjeta.Visible = True
+        cmb_marca.Visible = True
+
+        lbl_numTarjeta.Visible = True
+        txt_numTarjeta.Visible = True
+
+        lbl_autoorizacion.Visible = True
+        txt_autorizacion.Visible = True
+
+        lbl_numCuotas.Visible = True
+        txt_numCuotas.Visible = True
+
+        lbl_interes.Visible = True
+        txt_interes.Visible = True
+
+        lbl_precioCuota.Visible = True
+        txt_preCuota.Visible = True
+
+        dt = acceso._consulta("Select descripcion, id from Tarjetas where tipo= 'Credito'")
+        comb.cargar(cmb_marca, dt, "descripcion", "id")
+
+    End Sub
+
+    Private Sub optDebito_Click(sender As Object, e As EventArgs) Handles optDebito.Click
+        lbl_marcaTarjeta.Visible = True
+
+
+        lbl_numTarjeta.Visible = True
+        txt_numTarjeta.Visible = True
+
+        lbl_autoorizacion.Visible = True
+        txt_autorizacion.Visible = True
+
+        lbl_numCuotas.Visible = False
+        txt_numCuotas.Visible = False
+
+        cmb_marca.Visible = True
+
+
+        lbl_interes.Visible = False
+        txt_interes.Visible = False
+
+       
+        lbl_precioCuota.Visible = False
+        txt_preCuota.Visible = False
+
+
+        dt = acceso._consulta("Select descripcion, id from Tarjetas where tipo= 'Debito'")
+        comb.cargar(cmb_marca, dt, "descripcion", "id")
+    End Sub
+
+    Private Sub optEfectivo_Click(sender As Object, e As EventArgs) Handles optEfectivo.Click
+        activarDesactivar()
+    End Sub
+
+    Private Sub activarDesactivar()
+        lbl_marcaTarjeta.Visible = False
+        lbl_numTarjeta.Visible = False
+        lbl_autoorizacion.Visible = False
+        lbl_numCuotas.Visible = False
+        cmb_marca.Visible = False
+        txt_numTarjeta.Visible = False
+        txt_autorizacion.Visible = False
+        txt_numCuotas.Visible = False
+        lbl_interes.Visible = False
+        txt_interes.Visible = False
+ 
+
+        lbl_precioCuota.Visible = False
+        txt_preCuota.Visible = False
+
+        lbl_faltaEntregar.Visible = False
+        txt_faltaEntregar.Visible = False
+
+
+    End Sub
+
+    Private Sub cmd_agregar_Click(sender As Object, e As EventArgs) Handles cmd_agregar.Click
+        'antes de que se abra el frm pinta los asientos ocupado de ese viaje
+        '  asi.pintar(idViaje)
+
+
+
+        asi.ShowDialog()
+        numAsiento = asi._elegido
+
+        dt = acceso._consulta("Select fecha_hs_partida, precioViaje from Viajes where idViaje= " & idViaje)
+        grilla_viajes.Rows.Add(txtDestino.Text, dt.Rows(0)(0), dt.Rows(0)(1), numAsiento, idViaje)
+
+
+        cmd_destino.Enabled = False
+        cmd_horarios.Enabled = False
+
+        If grilla_viajes.Rows.Count > 0 Then
+            cmd_quitar.Enabled = True
+        End If
+
+        cmd_agregar.Enabled = False
+
+        limpiarViaje()
+        obtenerPrecios()
+
+
+
+    End Sub
+
+    Private Sub obtenerPrecios()
+
+        txt_subtotal.Text = 0
+        txt_iva.Text = 0
+        txtTotal.Text = 0
+
+        For c = 0 To grilla_viajes.Rows.Count - 2
+
+            txt_subtotal.Text = CDec(txt_subtotal.Text) + CDec(grilla_viajes.Rows(c).Cells("precio").Value)
+
+        Next
+
+        txt_iva.Text = (0.21 * CDec(txt_subtotal.Text))
+        total = CDec(txt_subtotal.Text) + CDec(txt_iva.Text)
+        txtTotal.Text = total
+
+    End Sub
+
+    Private Sub cmd_quitar_Click(sender As Object, e As EventArgs) Handles cmd_quitar.Click
+
+        grilla_viajes.Rows.Remove(grilla_viajes.CurrentRow)
+        obtenerPrecios()
+    End Sub
+
+    Private Sub txt_descu_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txt_descu.KeyPress
+    
+        Dim valor As Integer
+        valor = Asc(e.KeyChar)
+
+        If txt_descu.Text <> "" Then
+
+            If valor = 13 Then
+                txtTotal.Text = total - (total * CDec(txt_descu.Text))
+
+            End If
+        Else
+            txtTotal.Text = total
+        End If
+    End Sub
+
+    Private Function validar() As Boolean
+
+        If txtEntrego.Text = "" Then
+            MsgBox("Ingrese un monto de dinero en 'Entreg�' ")
+        End If
+
+
+
+
+        Return True
+    End Function
+
+    Private Sub cmdAgregarPago_Click(sender As Object, e As EventArgs) Handles cmdAgregarPago.Click
+        'form, des, can
+        Dim forma As String
+        Dim des As String
+        Dim idPgo, idTarjeta, numTarj, numCuo, numAuto As Integer
+
+        If validar() = False Then
+
+            Exit Sub
+        End If
+
+        If optCredito.Checked Then
+            forma = "Credito"
+            des = cmb_marca.Text
+            idPgo = 3
+        ElseIf optDebito.Checked Then
+            forma = "Debito"
+            des = cmb_marca.Text
+            idPgo = 2
+        Else
+            forma = "Efectivo"
+            des = "_"
+            idPgo = 1
+
+        End If
+
+        If optEfectivo.Checked Then
+            idTarjeta = 0
+            numTarj = 0
+            numCuo = 0
+            numAuto = 0
+        Else
+            idTarjeta = cmb_marca.SelectedValue
+            numTarj = CInt(txt_numTarjeta.Text)
+            numCuo = CInt(txt_numCuotas.Text)
+            numAuto = CInt(txt_autorizacion.Text)
+        End If
+
+
+        grilla_pagos.Rows.Add(forma, des, txtEntrego.Text, idPgo, idTarjeta, numTarj, numCuo, numAuto)
+
+        controlarPago()
+
+    End Sub
+
+    'este metodo controla que si los pagos agregados a la lista, llegan al total de lo que tiene que pagar
+    Private Sub controlarPago()
+
+        parcial = 0
+
+        For c = 0 To grilla_pagos.Rows.Count - 2
+            parcial += CDec(grilla_pagos.Rows(c).Cells(2).Value)
+        Next
+
+        'si ya se llego al total desactivamos la opcion de seguir agregando formas de pago
+        If parcial = CDec(txtTotal.Text) Then
+
+            cmdAgregarPago.Enabled = False
+            cmdConfirmar.Enabled = True
+
+            'ocultamos label y text de Falta entregar
+            lbl_faltaEntregar.Visible = False
+            txt_faltaEntregar.Visible = False
+
+
+            lbl_vuelto.Visible = False
+            txt_Vuelto.Visible = False
+
+        ElseIf parcial < CDec(txtTotal.Text) Then
+
+            'MOSTRAMOS label y text de Falta entregar
+            lbl_faltaEntregar.Visible = True
+            txt_faltaEntregar.Visible = True
+            txt_faltaEntregar.Text = CDec(txtTotal.Text) - parcial
+
+
+            cmdAgregarPago.Enabled = True
+
+            cmdConfirmar.Enabled = False
+            lbl_vuelto.Visible = False
+            txt_Vuelto.Visible = False
+
+
+        ElseIf parcial > CDec(txtTotal.Text) Then
+            lbl_vuelto.Visible = True
+            txt_Vuelto.Visible = True
+            txt_Vuelto.Text = parcial - CDec(txtTotal.Text)
+
+          
+            lbl_faltaEntregar.Visible = False
+            txt_faltaEntregar.Visible = False
+            cmdAgregarPago.Enabled = False
+
+            cmdConfirmar.Enabled = True
+
+
+        End If
+
+        limpiarPago()
+        optEfectivo.Checked = True
+
+    End Sub
+
+    Private Sub cmd_quitarPago_Click(sender As Object, e As EventArgs) Handles cmd_quitarPago.Click
+        If grilla_pagos.Rows.Count > 0 Then
+            grilla_pagos.Rows.Remove(grilla_pagos.CurrentRow)
+        End If
+
+        controlarPago()
+
+
+    End Sub
+
+    Private Sub txt_numCuotas_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txt_numCuotas.KeyPress
+
+
+        Dim valor As Integer
+        valor = Asc(e.KeyChar)
+
+        'si valor=13 significa que presiono el boton enter
+
+
+        If valor = 13 Then
+            If txt_numCuotas.Text <> "" Then
+
+                txt_preCuota.Text = CDec(txt_faltaEntregar.Text) / CDec(txt_numCuotas.Text)
+
+            End If
+        End If
+
+
+    End Sub
+
+  
+End Class
