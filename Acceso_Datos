@@ -1,0 +1,152 @@
+Public Class acceso_a_datos
+    Enum motores
+        oracle
+        sqlserver
+        access
+    End Enum
+    Dim conexion As New Object
+    Dim cmd As New Object
+    Dim motor As motores = motores.sqlserver
+
+    Dim sting_conexion As String = "Data Source=2CIDC85DE632C70\SQLEXPRES;Integrated Security=SSPI;Initial Catalog=Led"
+    Dim tabla As String = ""
+
+
+    '***
+    Dim miTransaccion As Data.SqlClient.SqlTransaction
+
+    '***
+
+    Public Property _CadenaConexion() As String
+        Get
+            Return Me.sting_conexion
+        End Get
+        Set(ByVal value As String)
+            Me.sting_conexion = value
+        End Set
+    End Property
+    Public Property _tabla() As String
+        Get
+            Return Me.tabla
+        End Get
+        Set(ByVal value As String)
+            Me.tabla = value
+        End Set
+    End Property
+
+    Public Sub New()
+        Select Case Me.motor
+            Case motores.access
+                conexion = New Data.OleDb.OleDbConnection
+                cmd = New Data.OleDb.OleDbCommand
+            Case motores.sqlserver
+                conexion = New Data.SqlClient.SqlConnection
+                cmd = New Data.SqlClient.SqlCommand
+        End Select
+    End Sub
+
+    Public Sub New(ByVal _CadenaConexion As String, ByVal _MotorBaseDatos As motores)
+        Me.sting_conexion = _CadenaConexion
+        Me.motor = _MotorBaseDatos
+        Select Case Me.motor
+            Case motores.access
+                conexion = New Data.OleDb.OleDbConnection
+                cmd = New Data.OleDb.OleDbCommand
+            Case motores.sqlserver
+                conexion = New Data.SqlClient.SqlConnection
+                cmd = New Data.SqlClient.SqlCommand
+        End Select
+    End Sub
+
+    Public Sub New(ByVal _CadenaConexion As String, ByVal _NombreTabla As String, ByVal _MotorBaseDatos As motores)
+        Me.sting_conexion = _CadenaConexion
+        Me.tabla = _NombreTabla
+        Me.motor = _MotorBaseDatos
+        Select Case Me.motor
+            Case motores.access
+                conexion = New Data.OleDb.OleDbConnection
+                cmd = New Data.OleDb.OleDbCommand
+            Case motores.sqlserver
+                conexion = New Data.SqlClient.SqlConnection
+                cmd = New Data.SqlClient.SqlCommand
+        End Select
+    End Sub
+
+    Public Sub New(ByVal _MotorBaseDatos As motores, ByVal _NombreTabla As String)
+        Me.tabla = _NombreTabla
+        Me.motor = _MotorBaseDatos
+        Select Case Me.motor
+            Case motores.access
+                conexion = New Data.OleDb.OleDbConnection
+                cmd = New Data.OleDb.OleDbCommand
+            Case motores.sqlserver
+                conexion = New Data.SqlClient.SqlConnection
+                cmd = New Data.SqlClient.SqlCommand
+        End Select
+    End Sub
+
+    Public Sub New(ByVal _MotorBaseDatos As motores)
+        Me.motor = _MotorBaseDatos
+        Select Case Me.motor
+            Case motores.access
+                conexion = New Data.OleDb.OleDbConnection
+                cmd = New Data.OleDb.OleDbCommand
+            Case motores.sqlserver
+                conexion = New Data.SqlClient.SqlConnection
+                cmd = New Data.SqlClient.SqlCommand
+        End Select
+    End Sub
+
+    Private Sub _conectar()
+        Me.conexion.ConnectionString = Me.sting_conexion
+        Me.conexion.Open()
+
+        Me.cmd.Connection = conexion
+        Me.cmd.CommandType = CommandType.Text
+    End Sub
+
+    Public Function _consulta(ByVal comando As String) As Data.DataTable
+        Dim _tabla As New Data.DataTable
+        Me._conectar()
+
+        Me.cmd.CommandText = comando
+        _tabla.Load(Me.cmd.ExecuteReader())
+        Me.conexion.Close()
+        Return _tabla
+    End Function
+
+
+    Public Sub _noEsConsulta(ByVal comando As String)
+        Me._conectar()
+
+
+        Me.cmd.CommandText = comando
+        cmd.ExecuteNonQuery()
+
+
+        '        Dim miTransa As SqlClient.SqlTransaction = conexion.BeginTransaction()
+        '       cmd.Transaction = miTransa
+
+        'Try
+
+        'Me.cmd.CommandText = comando
+        'cmd.ExecuteNonQuery()
+
+        '        miTransa.Commit()
+
+        'Catch ex As Exception
+        'miTransa.Rollback()
+
+
+        'Finally
+        Me.conexion.Close()
+
+        '  End Try
+
+
+    End Sub
+
+
+
+
+End Class
